@@ -24,19 +24,6 @@ from kneed import KneeLocator
 import warnings
 from mpl_toolkits.mplot3d import Axes3D
 warnings.filterwarnings('ignore')
-import plotly.express as px
-from nltk.sentiment.vader import SentimentIntensityAnalyzer
-from wordcloud import WordCloud
-import nltk
-
-# Download NLTK vader_lexicon if not already downloaded
-try:
-    nltk.data.find('sentiment/vader_lexicon.zip')
-except LookupError:
-    nltk.download('vader_lexicon')
-
-# Initialize the VADER SentimentIntensityAnalyzer
-analyzer = SentimentIntensityAnalyzer()
 
 # Function to save plot
 def save_plot(fig, filename):
@@ -102,35 +89,16 @@ def load_data(uploaded_file):
         return None
     
 def cluster_segments (rfm):
-    if(rfm.RFM_SCORE>=18000):
-        return 'High Value Customers'
-    if(rfm.RFM_SCORE>=10000 and rfm.RFM_SCORE<18000):
+    if(rfm.RFM_SCORE>=9):
+        return 'Champions'
+    if(rfm.RFM_SCORE>=6 and rfm.RFM_SCORE<9):
         return 'Potential Loyalist'
-    if(rfm.RFM_SCORE>=4000 and rfm.RFM_SCORE<10000):
+    if(rfm.RFM_SCORE>=5 and rfm.RFM_SCORE<6):
         return 'At Risk'
+    if(rfm.RFM_SCORE>=4 and rfm.RFM_SCORE<5):
+        return 'Can not Lose'
     else:
-        return 'Sleelpig Customers'
-    
-# def cluster_segments (rfm):
-#     if(rfm.RFM_SCORE>=9):
-#         return 'Champions'
-#     if(rfm.RFM_SCORE>=6 and rfm.RFM_SCORE<9):
-#         return 'Potential Loyalist'
-#     if(rfm.RFM_SCORE>=5 and rfm.RFM_SCORE<6):
-#         return 'At Risk'
-#     if(rfm.RFM_SCORE>=4 and rfm.RFM_SCORE<5):
-#         return 'Can not Lose'
-#     else:
-#         return 'Lost'
-
-# Function to calculate NPS
-def calculate_nps(scores):
-    promoters = len([score for score in scores if score >= 9])
-    detractors = len([score for score in scores if score <= 6])
-    total_responses = len(scores)
-
-    nps = ((promoters - detractors) / total_responses) * 100
-    return nps
+        return 'Lost'
 
 # Streamlit application layout
 st.image("logo.png", width=200)
@@ -139,7 +107,7 @@ st.title('PCD Sales Analysis Dashboard')
 # Sidebar for navigation
 st.sidebar.title('Navigation')
 options = st.sidebar.radio('Select an Analysis:', 
-                           ['Trend Analysis','Geographical Analysis','Product Performance', 'Pharmacy Performance', 'Alerts','Sales Forecasting', 'Market Segmentation', 'Sentiment Analysis', 'Net Promoter Score'])
+                           ['Trend Analysis','Geographical Analysis','Product Performance', 'Pharmacy Performance', 'Alerts','Sales Forecasting', 'Model Evaluation', 'Market Segmentation'])
 
 # Password input
 password_guess = st.text_input('What is the Password?', type ="password").strip()
@@ -993,26 +961,19 @@ if password_guess == st.secrets["password"]:
                 file_name='forecast_data.csv',
                 mime='text/csv',
             )
-
+            
             st.subheader("Model Evaluation")
             # Check for NaN values in monthly_sales
             if monthly_sales.isna().any():
                 st.write("Handling NaN values in monthly sales data.")
                 monthly_sales.fillna(method='ffill', inplace=True)  # Forward fill as an example
 
-            # Ensure forecast_periods is an integer and not larger than the length of monthly_sales
-            forecast_periods = min(forecast_periods, len(monthly_sales))
-
+            # Assuming monthly_sales is a Pandas Series or a list containing your entire time series data
             # Slice the last 'forecast_periods' months from monthly_sales
             actual_values = np.array(monthly_sales[-forecast_periods:])
 
-            # Ensure forecast is a numpy array and has the same length as forecast_periods
-            forecast_values = np.array(forecast[:forecast_periods])
-
-            # Check if lengths match
-            if len(actual_values) != len(forecast_values):
-                raise ValueError(f"Length mismatch: actual_values has {len(actual_values)} elements, "
-                                 f"forecast_values has {len(forecast_values)} elements.")
+            # Ensure forecast is a numpy array
+            forecast_values = np.array(forecast)  # Your forecasted sales data
 
             # Calculate the metrics
             mae = mean_absolute_error(actual_values, forecast_values)
@@ -1025,11 +986,46 @@ if password_guess == st.secrets["password"]:
             st.metric("Mean Squared Error", f"{mse:.2f}")
             st.metric("Root Mean Squared Error", f"{rmse:.2f}")
             st.metric("Mean Absolute Percentage Error", f"{mape:.2f}%")
-                
+            
+        elif options == 'Model Evaluation':
+            st.subheader("Model Evaluation")
+            # Check if the model is stored in the session state
+            if 'auto_model' in st.session_state:
+                # Display the model summary
+                st.text(st.session_state.auto_model.summary())
+            else:
+                # Warning message if the model is not available
+                st.warning('No model available. Please run a forecast first.')
+
         elif options == 'Market Segmentation':
             st.subheader("Market Segmentation")
             
-            uploaded_file = st.file_uploader("Choose a CSV file", type="csv", key="dataload")
+            # # Allow the user to upload a file
+            # uploaded_file = st.file_uploader("Choose a CSV file", type="csv", key="dataload")
+
+            # if uploaded_file is not None:
+            #     # Read the file and store the data in session state
+            #     data = pd.read_csv(uploaded_file)
+            #     data.columns = data.columns.str.strip()
+            #     st.session_state.data = data  # Store the DataFrame in session state
+
+            # # Check if data is stored in session state
+            # if 'data' in st.session_state and st.session_state.data is not None:
+            #     # Use the stored data
+            #     data = st.session_state.data
+            
+            # Check if the file is already uploaded and stored in the session state
+            if 'uploaded_file' not in st.session_state or st.session_state.uploaded_file is None:
+                # Allow the user to upload the file
+                uploaded_file = st.file_uploader("Choose a CSV file", type="csv", key="dataload")
+                
+                # Store the uploaded file in the session state
+                if uploaded_file is not None:
+                    st.session_state.uploaded_file = uploaded_file
+            else:
+                uploaded_file = st.session_state.uploaded_file
+            
+            # uploaded_file = st.file_uploader("Choose a CSV file", type="csv", key="dataload")
             
             if uploaded_file is not None:
                 data = load_data(uploaded_file)
@@ -1040,6 +1036,7 @@ if password_guess == st.secrets["password"]:
                     try:
                         # ... Perform further operations with 'data' ...
                         # RFM Analysis
+                        latest_date = str(data['Invoice Date'].max())  # Convert to string when needed
                         latest_date = data['Invoice Date'].max() + dt.timedelta(days=1)
                         rfm = data.groupby('Name').agg({
                             'Invoice Date': lambda x: (latest_date - x.max()).days,
@@ -1148,16 +1145,7 @@ if password_guess == st.secrets["password"]:
                         # Display the plot in Streamlit
                         st.pyplot(fig)
                         
-                        # Create a treemap chart
-                        fig = px.treemap(segment_table, path=['Segment'], values='Customer Count')
-
-                        # Set chart title
-                        fig.update_layout(title='Customer Count per Segment (Treemap)')
-
-                        # Display the treemap chart in Streamlit
-                        st.plotly_chart(fig)
-                        
-                        # Create a new figure for 3D plotting
+                       # Create a new figure for 3D plotting
                         fig = plt.figure()
                         ax = fig.add_subplot(111, projection='3d')
 
@@ -1177,142 +1165,14 @@ if password_guess == st.secrets["password"]:
 
                         # Show plot
                         st.pyplot(fig)
-                       
+                      
                     except TypeError as e:
                         st.error(f"TypeError encountered: {e}")
                 else:
                     st.error("The uploaded file does not contain an 'Invoice Date' column or failed to load correctly.")
             else:
                 st.write("Please upload a CSV file.")
-                
-        elif options == 'Sentiment Analysis':
-                            
-            filename = st.file_uploader("Upload reviews data:", type=("csv"))
-            
-            st.markdown("<h1 style='font-size:30px;'>Voice of the Customer: Sentiment Analysis</h1>", unsafe_allow_html=True)
 
-            if filename is not None:
-                data = pd.read_csv(filename, encoding="utf-8")  # Assuming CSV file format
-                data["body"] = data["body"].astype("str")
-
-                # Apply VADER sentiment analysis
-                data["scores"] = data["body"].apply(lambda x: analyzer.polarity_scores(x)["compound"])
-                data["sentiment"] = data["scores"].apply(lambda x: "Positive" if x >= 0.05 else ("Neutral" if x > -0.05 else "Negative"))
-
-                data = data[['brand', 'body', 'sentiment', 'scores', 'date']]
-                data['date'] = pd.to_datetime(data['date'])
-                data['quarter'] = pd.PeriodIndex(data.date, freq='Q')
-
-                # Create a dynamic list of unique brands from the data
-                brands = data['brand'].unique().tolist()
-
-                # Set the default selected brand to be the first brand in the list
-                default_brand = brands[0]
-
-                st.sidebar.write("Select Brands for Sentiment Analysis:")
-                selected_brands = st.sidebar.multiselect("Select brands:", brands, default=default_brand)
-
-                # Define colors for sentiments
-                sentiment_colors = {"Positive": "green", "Neutral": "blue", "Negative": "red"}
-
-                st.subheader("Sentiment Analysis for Selected Brands")
-
-                brand_sentiments = []
-
-                for brand in selected_brands:
-                    st.markdown(f"### {brand}")
-                    brand_data = data[data['brand'] == brand]
-
-                    # Processing data for sentiment analysis
-                    sentiment_count = brand_data['sentiment'].value_counts().reset_index()
-                    sentiment_count.columns = ['Sentiment', 'Count']
-
-                    # Displaying review counts
-                    st.sidebar.write(f"Reviews count by brand ({brand}):")
-                    st.sidebar.write(sentiment_count)
-
-                    # Plotting sentiment distribution with specified colors
-                    st.subheader(f"Brand Reviews Sentiment Distribution ({brand})")
-                    fig = px.pie(sentiment_count, values='Count', names='Sentiment', title=f'Sentiment distribution for {brand}', color='Sentiment', color_discrete_map=sentiment_colors)
-                    st.plotly_chart(fig, use_container_width=True)
-
-                    # Trend analysis
-                    st.subheader(f"Trend Analysis of Sentiments for {brand}")
-
-                    # First, ensure the 'date' column is in datetime format
-                    brand_data['date'] = pd.to_datetime(brand_data['date'])
-
-                    # Create a 'Month-Year' column before grouping
-                    brand_data['Month-Year'] = brand_data['date'].dt.strftime('%m-%Y')
-
-                    # Group by the original 'date' column and 'sentiment', then create 'Month-Year' for display
-                    trend_data = brand_data.groupby([pd.Grouper(key='date', freq='M'), 'sentiment']).size().reset_index(name='Count')
-                    trend_data['Month-Year'] = trend_data['date'].dt.strftime('%m-%Y')
-
-                    # No need to sort by 'Month-Year' as it's already sorted by the 'date' column
-                    fig2 = px.line(trend_data, x="Month-Year", y="Count", color='sentiment', title=f'Monthly Sentiment Trends for {brand}', color_discrete_map=sentiment_colors)
-                    st.plotly_chart(fig2, use_container_width=True)
-
-
-                    # Word clouds for each sentiment
-                    st.subheader(f"Word Clouds for Reviews Sentiment ({brand})")
-                    col1, col2, col3 = st.columns(3)
-                    for sentiment, col in zip(['Positive', 'Neutral', 'Negative'], [col1, col2, col3]):
-                        sentiment_data = brand_data[brand_data['sentiment'] == sentiment]
-                        words = ' '.join(sentiment_data['body'])
-                        if words:
-                            wordcloud = WordCloud(width=300, height=150).generate(words)
-                            col.image(wordcloud.to_array(), caption=f'{sentiment} Reviews Word Cloud', use_column_width=True)
-
-                    # Display top 5 reviews for each sentiment
-                    for sentiment in ['Positive', 'Neutral', 'Negative']:
-                        st.subheader(f"Top 5 {sentiment} Reviews for {brand}:")
-                        sentiment_reviews = brand_data[brand_data['sentiment'] == sentiment].nlargest(5, 'scores')
-                        if not sentiment_reviews.empty:
-                            for index, row in sentiment_reviews.iterrows():
-                                st.write(f"{row['body']} - Score: {row['scores']}")
-                        else:
-                            st.write(f"No {sentiment.lower()} reviews found for this brand.")
-
-                    brand_sentiments.append(brand_data)
-
-                # Sentiment comparison between selected brands
-                st.subheader("Sentiment Comparison Between Brands")
-                combined_data = pd.concat(brand_sentiments)
-                fig3 = px.bar(combined_data, x="brand", y="scores", color="sentiment", barmode="group", title='Sentiment Comparison Between Brands', color_discrete_map=sentiment_colors)
-                st.plotly_chart(fig3, use_container_width=True)
-                
-        elif options == 'Net Promoter Score':
-            # Streamlit app layout
-            st.subheader("Net Promoter Score Calculator")
-
-            # File uploader for periodic data
-            uploaded_file = st.file_uploader("Upload your CSV file with periodic data", type="csv")
-            if uploaded_file is not None:
-                # Read data
-                data = pd.read_csv(uploaded_file)
-
-                # Check if the CSV has the expected columns: 'Period' and 'Score'
-                if 'Period' in data.columns and 'Score' in data.columns:
-                    # Calculate NPS for each period
-                    period_nps = data.groupby('Period')['Score'].apply(calculate_nps).reset_index(name='NPS')
-                    st.write("Net Promoter Score for each Period:")
-                    st.write(period_nps)
-                    
-                    # Plotting NPS by period
-                    st.write("NPS Trend Over Periods:")
-                    plt.figure(figsize=(10, 6))
-                    period_nps.plot(kind='bar', color='skyblue')
-                    plt.title('Net Promoter Score by Period')
-                    plt.xlabel('Period')
-                    plt.ylabel('Net Promoter Score')
-                    plt.xticks(rotation=45)
-                    plt.grid(axis='y')
-                    st.pyplot(plt)
-                    
-                else:
-                    st.error("CSV file must have columns named 'Period' and 'Score'")
-     
     else:
         st.warning('Please upload a CSV file to proceed.')
 
