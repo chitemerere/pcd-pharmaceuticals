@@ -107,7 +107,7 @@ st.title('PCD Sales Analysis Dashboard')
 # Sidebar for navigation
 st.sidebar.title('Navigation')
 options = st.sidebar.radio('Select an Analysis:', 
-                           ['Trend Analysis','Geographical Analysis','Product Performance', 'Pharmacy Performance', 'Alerts','Sales Forecasting', 'Model Evaluation', 'Market Segmentation'])
+                           ['Trend Analysis','Geographical Analysis','Product Performance', 'Pharmacy Performance', 'Alerts','Sales Forecasting', 'Market Segmentation'])
 
 # Password input
 password_guess = st.text_input('What is the Password?', type ="password").strip()
