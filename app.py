@@ -111,18 +111,6 @@ def cluster_segments (rfm):
     else:
         return 'Sleelpig Customers'
     
-# def cluster_segments (rfm):
-#     if(rfm.RFM_SCORE>=9):
-#         return 'Champions'
-#     if(rfm.RFM_SCORE>=6 and rfm.RFM_SCORE<9):
-#         return 'Potential Loyalist'
-#     if(rfm.RFM_SCORE>=5 and rfm.RFM_SCORE<6):
-#         return 'At Risk'
-#     if(rfm.RFM_SCORE>=4 and rfm.RFM_SCORE<5):
-#         return 'Can not Lose'
-#     else:
-#         return 'Lost'
-
 # Function to calculate NPS
 def calculate_nps(scores):
     promoters = len([score for score in scores if score >= 9])
@@ -140,7 +128,7 @@ st.title('PCD Sales Analysis Dashboard')
 st.sidebar.title('Navigation')
 options = st.sidebar.radio('Select an Analysis:', 
                            ['Trend Analysis','Geographical Analysis','Product Performance', 
-                            'Pharmacy Performance', 'Alerts','Sales Forecasting', 'Market Segmentation']) 
+                            'Pharmacy Performance', 'Alerts']) 
 #                             'Sentiment Analysis', 'Net Promoter Score'])
 
 # Password input
